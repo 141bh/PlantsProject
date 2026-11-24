@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plant Cloud | ระบบทะเบียนพรรณไม้</title>
+
+  <!-- โหลดฟอนต์ Kanit สำหรับภาษาไทย -->
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- โหลด Supabase SDK สำหรับรองรับการเชื่อมต่อฐานข้อมูลจริงในอนาคต -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    /* ตัวแปรสีและธีมหลักของระบบ */
+    :root {
+      --green: #1f5c3d;
+      --green-badge: #1d633f;
+      --green-light: #eaf3ec;
+      --green-dark: #143d28;
+      --bg-page: #f5f6f7;
+      --text: #1f2923;
+      --muted: #66706a;
+      --white: #ffffff;
+      --border: #e2e6e4;
+      --danger: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Kanit', sans-serif;
+      background: var(--bg-page);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    button, input {
+      font-family: inherit;
+    }
+
+    /* แถบนำทางด้านบน (Navbar) */
+    .navbar {
+      background: var(--white);
+      padding: 14px 4%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1f3328;
+      line-height: 1.15;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .reset-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .reset-btn:hover {
+      background: #f0f2f1;
+      color: var(--text);
+      border-color: #cbd2ce;
+    }
+
+    /* คอนเทนเนอร์หลัก */
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 24px 50px;
+    }
+
+    /* ส่วนหัวหน้าเว็บ */
+    .page-header {
+      text-align: center;
+      margin-bottom: 26px;
+    }
+
+    .page-header h1 {
+      font-size: clamp(28px, 3.5vw, 38px);
+      font-weight: 700;
+      color: #1c2821;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .page-header p {
+      color: var(--muted);
+      font-size: 15px;
+      margin-top: 4px;
+    }
+
+    /* การ์ดสรุปสถิติ 3 คอลัมน์ */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--white);
+      padding: 18px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .stat-card span {
+      color: #333d37;
+      font-size: 15px;
+      font-weight: 500;
+      display: block;
+    }
+
+    .stat-card h2 {
+      font-size: 30px;
+      font-weight: 600;
+      color: #1c2821;
+      margin-top: 2px;
+    }
+
+    /* โครงสร้างหลักแบบ 2 คอลัมน์ */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 440px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 22px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    .panel-title {
+      font-size: 19px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      color: #1c2821;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* แบบฟอร์มเพิ่มพรรณไม้ */
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #333d37;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 13px;
+      border: 1px solid #d5dbd8;
+      background: var(--white);
+      border-radius: 8px;
+      outline: none;
+      font-size: 14px;
+      color: var(--text);
+      transition: 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(31, 92, 61, 0.1);
+    }
+
+    /* กล่องแสดงตัวอย่างรูปภาพที่คลิกเปลี่ยนรูปได้ */
+    .preview-wrapper {
+      margin-top: 12px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .upload-trigger {
+      cursor: pointer;
+      display: block;
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #f0f2f1;
+    }
+
+    .upload-trigger:hover::after {
+      content: "📷 คลิกเพื่อเลือกรูปภาพพรรณไม้";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.48);
+      color: var(--white);
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    #preview {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .preview-caption {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .btn-dark {
+      background: #232725;
+      color: var(--white);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .btn-dark:hover {
+      background: #111413;
+    }
+
+    .btn-dark:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* ส่วนหัวฝั่งรายการพรรณไม้ */
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .search-wrapper {
+      position: relative;
+      max-width: 240px;
+      width: 100%;
+    }
+
+    .search-wrapper span {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 13px;
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    .search-box {
+      padding-left: 32px !important;
+      height: 36px;
+      font-size: 13px !important;
+      border-radius: 8px !important;
+    }
+
+    /* กริดการ์ดพรรณไม้ 3 คอลัมน์ */
+    .plant-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .plant-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      transition: 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .plant-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    }
+
+    .plant-image {
+      width: 100%;
+      height: 155px;
+      object-fit: cover;
+      background: #eef2ef;
+      display: block;
+    }
+
+    .plant-info {
+      padding: 13px 14px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .plant-code {
+      display: inline-block;
+      align-self: flex-start;
+      background: var(--green-badge);
+      color: var(--white);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-bottom: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    .plant-sci {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #2b352f;
+      line-height: 1.3;
+    }
+
+    .plant-thai {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1f2923;
+      line-height: 1.3;
+    }
+
+    .plant-location {
+      font-size: 12.5px;
+      color: var(--muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 45px 20px;
+      color: var(--muted);
+      grid-column: 1 / -1;
+      background: #fafafa;
+      border-radius: 12px;
+      border: 1px dashed var(--border);
+    }
+
+    .message {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--green);
+      min-height: 18px;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      background: var(--white);
+      margin-top: 30px;
+    }
+
+    /* ปรับการแสดงผลบนหน้าจอขนาดกลางและมือถือ */
+    @media (max-width: 1050px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .plant-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .plant-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ส่วนหัวระบบ -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">🌱</div>
+      <div class="brand-text">
+        <span class="brand-title">Plant Cloud</span>
+        <span class="brand-sub">ระบบทะเบียนพรรณไม้</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <button type="button" class="reset-btn" id="resetDemoBtn" title="คืนค่าข้อมูลตัวอย่างเริ่มต้น">
+        รีเซ็ตข้อมูลตัวอย่าง
+      </button>
+    </div>
+  </nav>
+
+  <main class="container">
+
+    <!-- หัวข้อหน้า -->
+    <header class="page-header">
+      <h1>ทะเบียนพรรณไม้ 🌿</h1>
+      <p>รวบรวมและจัดการข้อมูลพรรณไม้ของคุณไว้ในที่เดียว</p>
+    </header>
+
+    <!-- การ์ดสถิติ -->
+    <section class="stats" aria-label="สถิติพรรณไม้">
+      <div class="stat-card">
+        <span>พรรณไม้ทั้งหมด</span>
+        <h2 id="totalPlants">16</h2>
+      </div>
+
+      <div class="stat-card">
+        <span>สถานที่ปลูก</span>
+        <h2 id="totalLocations">6</h2>
+      </div>
+
+      <div class="stat-card">
+        <span>รูปภาพพรรณไม้</span>
+        <h2 id="totalImages">12</h2>
+      </div>
+    </section>
+
+    <!-- พื้นที่หลัก 2 คอลัมน์ -->
+    <div class="main-layout">
+
+      <!-- ฝั่งซ้าย: ฟอร์มเพิ่มพรรณไม้ -->
+      <section class="panel">
+        <h2 class="panel-title">＋ เพิ่มพรรณไม้</h2>
+
+        <form id="plantForm">
+          <div class="form-group">
+            <label for="plantCode">รหัสพรรณไม้</label>
+            <input
+              type="text"
+              id="plantCode"
+              value="P017"
+              placeholder="เช่น P017"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="plantName">ชื่อพรรณไม้</label>
+            <input
+              type="text"
+              id="plantName"
+              value="ยางนา"
+              placeholder="กรอกชื่อพรรณไม้"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="plantLocation">สถานที่ปลูก</label>
+            <input
+              type="text"
+              id="plantLocation"
+              value="สวนเฉลิมพระเกียรติ"
+              placeholder="เช่น สวนเฉลิมพระเกียรติ"
+            >
+          </div>
+
+          <!-- ช่องแสดงตัวอย่างรูปภาพพรรณไม้ -->
+          <div class="preview-wrapper">
+            <label class="upload-trigger" for="plantImage" title="คลิกเพื่อเลือกรูปภาพพรรณไม้">
+              <img
+                id="preview"
+                src="https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&w=800&q=80"
+                alt="ตัวอย่างรูปพรรณไม้"
+              >
+            </label>
+            <input
+              type="file"
+              id="plantImage"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+            >
+            <div class="preview-caption">ตัวอย่างรูปพรรณไม้</div>
+          </div>
+
+          <button type="submit" class="btn-dark" id="saveBtn">
+            บันทึกพรรณไม้
+          </button>
+
+          <div class="message" id="message" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <!-- ฝั่งขวา: รายการพรรณไม้ -->
+      <section class="panel">
+        <div class="content-header">
+          <h2 class="panel-title" style="margin:0">
+            🌳 รายการพรรณไม้
+          </h2>
+
+          <div class="search-wrapper">
+            <span>🔍</span>
+            <input
+              type="text"
+              id="searchInput"
+              class="search-box"
+              placeholder="Search"
+              aria-label="ค้นหารายการพรรณไม้"
+            >
+          </div>
+        </div>
+
+        <div class="plant-grid" id="plantList"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>
+    Plant Cloud · ระบบทะเบียนพรรณไม้
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. การตั้งค่า Supabase (รองรับการใช้งานร่วมกับฐานข้อมูลจริงเมื่อใส่ Key)
+    // =========================================================================
+    const SUPABASE_URL = 'https://fszmzmhujpvzuwattpip.supabase.co';
+    const SUPABASE_KEY = 'YOUR_PUBLISHABLE_KEY';
+    const BUCKET = 'plant-images';
+    const STORAGE_KEY = 'plant_cloud_records_v1';
+
+    const isSupabaseConfigured =
+      Boolean(SUPABASE_KEY) && SUPABASE_KEY !== 'YOUR_PUBLISHABLE_KEY';
+
+    const db = isSupabaseConfigured && window.supabase
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+      : null;
+
+    // =========================================================================
+    // 2. ข้อมูลพรรณไม้ตัวอย่างพร้อมรูปภาพความละเอียดสูง
+    // =========================================================================
+    const SAMPLE_PLANTS = [
+      {
+        plant_code: 'P001',
+        sci_name: 'Monstera deliciosa',
+        thai_name: 'มอนสเตอร่า',
+        location: 'สวนหน้าบ้าน',
+        image_url: 'https://images.unsplash.com/photo-1614594975525-e45190c55d0b?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        plant_code: 'P004',
+        sci_name: 'Ficus lyrata',
+        thai_name: 'ไทรใบสัก',
+        location: 'ห้องทำงาน',
+        image_url: 'https://images.unsplash.com/photo-1545241047-6083a3684587?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        plant_code: 'P009',
+        sci_name: 'Sansevieria trifasciata',
+        thai_name: 'ลิ้นมังกร',
+        location: 'ระเบียงห้อง',
+        image_url: 'https://images.unsplash.com/photo-1593482892290-f54927ae1bb6?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        plant_code: 'P011',
+        sci_name: 'Adenium obesum',
+        thai_name: 'ชวนชม',
+        location: 'ดาดฟ้า',
+        image_url: 'https://images.unsplash.com/photo-1610397648930-477b8c7f0943?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        plant_code: 'P013',
+        sci_name: 'Epipremnum aureum',
+        thai_name: 'พลูด่าง',
+        location: 'ห้องน้ำ',
+        image_url: 'https://images.unsplash.com/photo-1596724878582-76f1a8fdc24f?auto=format&fit=crop&w=800&q=80'
+      },
+      {
+        plant_code: 'P015',
+        sci_name: 'Adiantum spp.',
+        thai_name: 'เฟิร์นก้านดำ',
+        location: 'ข้างตึก',
+        image_url: 'https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=800&q=80'
+      }
+    ];
+
+    const FALLBACK_PLANT_IMAGE =
+      'https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&w=800&q=80';
+
+    // ตัวเลขชดเชยเริ่มต้นเพื่อให้สถิติสอดคล้องกับภาพต้นแบบเมื่ออยู่ในโหมดตัวอย่าง
+    const INITIAL_DEMO_OFFSET = { plants: 10, images: 6 };
+
+    // =========================================================================
+    // 3. อ้างอิงองค์ประกอบบนหน้าเว็บและสถานะการทำงาน
+    // =========================================================================
+    const form = document.getElementById('plantForm');
+    const plantList = document.getElementById('plantList');
+    const imageInput = document.getElementById('plantImage');
+    const preview = document.getElementById('preview');
+    const message = document.getElementById('message');
+    const saveBtn = document.getElementById('saveBtn');
+    const searchInput = document.getElementById('searchInput');
+    const resetDemoBtn = document.getElementById('resetDemoBtn');
+
+    let plants = [];
+    let selectedImageFile = null;
+    let selectedImageDataUrl = null;
+    let extraOffset = { ...INITIAL_DEMO_OFFSET };
+
+    /**
+     * แสดงข้อความแจ้งเตือนสถานะ (สำเร็จ หรือ ผิดพลาด)
+     */
+    function setMessage(text, isError = false) {
+      message.textContent = text;
+      message.classList.toggle('error', isError);
+    }
+
+    /**
+     * แปลงไฟล์รูปภาพเป็น Data URL เพื่อให้สามารถบันทึกเก็บใน localStorage ได้
+     */
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์รูปภาพได้'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    /**
+     * บันทึกรายการพรรณไม้ลง localStorage
+     */
+    function saveToLocalStorage(list, offset) {
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ plants: list, offset })
+        );
+      } catch (err) {
+        console.warn('ไม่สามารถบันทึกลง localStorage ได้:', err);
+      }
+    }
+
+    /**
+     * โหลดรายการพรรณไม้จาก localStorage หากมี
+     */
+    function loadFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed.plants)) {
+          return parsed;
+        }
+      } catch (err) {
+        console.warn('ไม่สามารถอ่านข้อมูลจาก localStorage ได้:', err);
+      }
+      return null;
+    }
+
+    // =========================================================================
+    // 4. จัดการการเลือกรูปภาพและแสดงตัวอย่าง
+    // =========================================================================
+    imageInput.addEventListener('change', async function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        setMessage('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WebP)', true);
+        this.value = '';
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        setMessage('ขนาดรูปภาพต้องไม่เกิน 5 MB', true);
+        this.value = '';
+        return;
+      }
+
+      try {
+        selectedImageFile = file;
+        selectedImageDataUrl = await readFileAsDataUrl(file);
+        preview.src = selectedImageDataUrl;
+        setMessage('');
+      } catch (err) {
+        setMessage(err.message, true);
+      }
+    });
+
+    // =========================================================================
+    // 5. โหลดข้อมูลพรรณไม้เริ่มต้น
+    // =========================================================================
+    async function loadPlants() {
+      try {
+        if (!isSupabaseConfigured) {
+          const saved = loadFromLocalStorage();
+          if (saved && saved.plants.length > 0) {
+            plants = saved.plants;
+            extraOffset = saved.offset || { plants: 0, images: 0 };
+          } else {
+            plants = [...SAMPLE_PLANTS];
+            extraOffset = { ...INITIAL_DEMO_OFFSET };
+          }
+          updateStats();
+          renderPlants(getFilteredPlants());
+          return;
+        }
+
+        plantList.innerHTML = `
+          <div class="empty">กำลังโหลดข้อมูลจากฐานข้อมูล...</div>
+        `;
+
+        const { data, error } = await db
+          .from('plants')
+          .select('plant_code,sci_name,thai_name,location,image_url')
+          .order('plant_code');
+
+        if (error) {
+          throw error;
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+          plants = data;
+          extraOffset = { plants: 0, images: 0 };
+        } else {
+          plants = [...SAMPLE_PLANTS];
+          extraOffset = { ...INITIAL_DEMO_OFFSET };
+        }
+
+        updateStats();
+        renderPlants(getFilteredPlants());
+      } catch (error) {
+        console.error('โหลดข้อมูลล้มเหลว:', error);
+        plants = [...SAMPLE_PLANTS];
+        extraOffset = { ...INITIAL_DEMO_OFFSET };
+        updateStats();
+        renderPlants(getFilteredPlants());
+        setMessage('แสดงข้อมูลตัวอย่าง เนื่องจากยังไม่ได้เชื่อมต่อฐานข้อมูล', true);
+      }
+    }
+
+    // =========================================================================
+    // 6. แสดงการ์ดพรรณไม้ในกริด 3 คอลัมน์
+    // =========================================================================
+    function renderPlants(items) {
+      if (!items || items.length === 0) {
+        plantList.innerHTML = `
+          <div class="empty">ไม่พบข้อมูลพรรณไม้ที่ค้นหา</div>
+        `;
+        return;
+      }
+
+      plantList.innerHTML = '';
+
+      items.forEach(function (plant) {
+        const card = document.createElement('article');
+        card.className = 'plant-card';
+
+        const image = document.createElement('img');
+        image.className = 'plant-image';
+        image.alt = plant.thai_name || 'พรรณไม้';
+        image.loading = 'lazy';
+        image.src = plant.image_url || FALLBACK_PLANT_IMAGE;
+
+        image.onerror = function () {
+          this.onerror = null;
+          this.src = 'https://placehold.co/600x400/eaf3ec/1f5c3d?text=Plant';
+        };
+
+        const info = document.createElement('div');
+        info.className = 'plant-info';
+
+        const code = document.createElement('span');
+        code.className = 'plant-code';
+        code.textContent = plant.plant_code || '-';
+        info.appendChild(code);
+
+        if (plant.sci_name && plant.sci_name.trim()) {
+          const sci = document.createElement('div');
+          sci.className = 'plant-sci';
+          sci.textContent = plant.sci_name;
+          info.appendChild(sci);
+        }
+
+        const thaiName = document.createElement('div');
+        thaiName.className = 'plant-thai';
+        thaiName.textContent = plant.thai_name || '-';
+
+        const location = document.createElement('div');
+        location.className = 'plant-location';
+        location.textContent = '📍 ' + (plant.location || 'ไม่ระบุสถานที่');
+
+        info.append(thaiName, location);
+        card.append(image, info);
+        plantList.appendChild(card);
+      });
+    }
+
+    // =========================================================================
+    // 7. อัปเดตตัวเลขสถิติทั้ง 3 การ์ด
+    // =========================================================================
+    function updateStats() {
+      const totalPlantsCount = plants.length + (extraOffset.plants || 0);
+      document.getElementById('totalPlants').textContent = totalPlantsCount;
+
+      const uniqueLocations = new Set(
+        plants
+          .map(p => (p.location || '').trim())
+          .filter(Boolean)
+      );
+      document.getElementById('totalLocations').textContent = uniqueLocations.size;
+
+      const imagesCount =
+        plants.filter(p => Boolean(p.image_url)).length +
+        (extraOffset.images || 0);
+      document.getElementById('totalImages').textContent = imagesCount;
+    }
+
+    // =========================================================================
+    // 8. ค้นหาและกรองรายการพรรณไม้
+    // =========================================================================
+    function getFilteredPlants() {
+      const keyword = searchInput.value.trim().toLowerCase();
+      if (!keyword) return plants;
+
+      return plants.filter(function (plant) {
+        return (
+          (plant.thai_name || '').toLowerCase().includes(keyword) ||
+          (plant.sci_name || '').toLowerCase().includes(keyword) ||
+          (plant.plant_code || '').toLowerCase().includes(keyword) ||
+          (plant.location || '').toLowerCase().includes(keyword)
+        );
+      });
+    }
+
+    searchInput.addEventListener('input', function () {
+      renderPlants(getFilteredPlants());
+    });
+
+    // =========================================================================
+    // 9. บันทึกข้อมูลพรรณไม้ใหม่
+    // =========================================================================
+    form.addEventListener('submit', async function (event) {
+      event.preventDefault();
+
+      const plantCodeInput = document.getElementById('plantCode');
+      const plantNameInput = document.getElementById('plantName');
+      const plantLocationInput = document.getElementById('plantLocation');
+
+      const plantCode = plantCodeInput.value.trim();
+      const plantName = plantNameInput.value.trim();
+      const plantLocation = plantLocationInput.value.trim();
+
+      if (!plantCode || !plantName) {
+        setMessage('กรุณากรอกรหัสพรรณไม้และชื่อพรรณไม้ให้ครบถ้วน', true);
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'กำลังบันทึก...';
+      setMessage('');
+
+      try {
+        const finalImageUrl = selectedImageDataUrl || preview.src || FALLBACK_PLANT_IMAGE;
+
+        if (!isSupabaseConfigured) {
+          const newPlant = {
+            plant_code: plantCode,
+            sci_name: '',
+            thai_name: plantName,
+            location: plantLocation || 'ไม่ระบุสถานที่',
+            image_url: finalImageUrl
+          };
+
+          plants.push(newPlant);
+          extraOffset = {
+            plants: (extraOffset.plants || 0) + 1,
+            images: (extraOffset.images || 0) + 1
+          };
+
+          saveToLocalStorage(plants, extraOffset);
+          updateStats();
+          renderPlants(getFilteredPlants());
+          setMessage('บันทึกพรรณไม้สำเร็จแล้ว 🌱');
+
+          plantCodeInput.value = '';
+          plantNameInput.value = '';
+          plantLocationInput.value = '';
+          imageInput.value = '';
+          selectedImageFile = null;
+          selectedImageDataUrl = null;
+        } else {
+          let uploadedUrl = finalImageUrl;
+
+          if (selectedImageFile) {
+            const parts = selectedImageFile.name.split('.');
+            const extension = parts.length > 1 ? parts.pop().toLowerCase() : 'jpg';
+            const filePath =
+              Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + extension;
+
+            const { error: uploadError } = await db.storage
+              .from(BUCKET)
+              .upload(filePath, selectedImageFile, {
+                contentType: selectedImageFile.type,
+                upsert: false
+              });
+
+            if (uploadError) {
+              throw uploadError;
+            }
+
+            const { data: publicData } = db.storage
+              .from(BUCKET)
+              .getPublicUrl(filePath);
+
+            if (publicData && publicData.publicUrl) {
+              uploadedUrl = publicData.publicUrl;
+            }
+          }
+
+          const { error: insertError } = await db
+            .from('plants')
+            .insert({
+              plant_code: plantCode,
+              thai_name: plantName,
+              location: plantLocation || null,
+              image_url: uploadedUrl
+            });
+
+          if (insertError) {
+            throw insertError;
+          }
+
+          setMessage('บันทึกพรรณไม้ลงฐานข้อมูลสำเร็จแล้ว 🌱');
+          form.reset();
+          selectedImageFile = null;
+          selectedImageDataUrl = null;
+          await loadPlants();
+        }
+      } catch (error) {
+        console.error('เกิดข้อผิดพลาดในการบันทึก:', error);
+        setMessage('เกิดข้อผิดพลาด: ' + (error.message || 'ไม่สามารถบันทึกข้อมูลได้'), true);
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'บันทึกพรรณไม้';
+      }
+    });
+
+    // =========================================================================
+    // 10. รีเซ็ตข้อมูลตัวอย่างกลับเป็นค่าเริ่มต้น
+    // =========================================================================
+    resetDemoBtn.addEventListener('click', function () {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (err) {
+        console.warn(err);
+      }
+      plants = [...SAMPLE_PLANTS];
+      extraOffset = { ...INITIAL_DEMO_OFFSET };
+      searchInput.value = '';
+      preview.src = FALLBACK_PLANT_IMAGE;
+      selectedImageFile = null;
+      selectedImageDataUrl = null;
+      updateStats();
+      renderPlants(plants);
+      setMessage('คืนค่าข้อมูลตัวอย่างเริ่มต้นเรียบร้อยแล้ว');
+    });
+
+    // เริ่มต้นโหลดข้อมูลเมื่อเปิดหน้าเว็บ
+    loadPlants();
+  </script>
+
+</body>
+</html>
